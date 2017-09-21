@@ -1,0 +1,71 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "The AWS CloudFormation template for bootstrap",
+  "Parameters" : {
+    "ExecuteApiAllowedAccounts" : {
+      "Description" : "Allowed aws accounts to invoke execute api",
+      "Type" : "CommaDelimitedList"
+    },
+    "ExecuteApiRoleName" : {
+      "Description" : "Execute api role name",
+      "Type" : "String",
+      "Default" : "attributes-ExecuteApiRole-us-east-1"
+    },
+    "ExecuteApiIAMPolicyResource" : {
+      "Description" : "Execute api arns",
+      "Type" : "CommaDelimitedList"
+    }
+  },
+  "Resources" : {
+    "CloudWatchRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": [ "apigateway.amazonaws.com" ] },
+            "Action": "sts:AssumeRole"
+          }]
+        },
+        "Path": "/",
+        "ManagedPolicyArns": ["arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"]
+      }
+    },
+    "Account": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": { "Fn::GetAtt": ["CloudWatchRole", "Arn"] }
+      }
+    },
+    "ExecuteApiRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+            "RoleName": {"Ref" : "ExecuteApiRoleName"},
+            "AssumeRolePolicyDocument": {
+               "Version" : "2012-10-17",
+               "Statement": [ {
+                  "Effect": "Allow",
+                  "Principal": {
+                     "Service": [ "apigateway.amazonaws.com" ],
+                     "AWS": {"Ref" : "ExecuteApiAllowedAccounts"}
+                  },
+                  "Action": [ "sts:AssumeRole" ]
+               } ]
+            },
+            "Path": "/",
+            "Policies": [ {
+               "PolicyName": "ExecuteApiIAMPolicy",
+               "PolicyDocument": {
+                  "Version" : "2012-10-17",
+                  "Statement": [ {
+                     "Effect": "Allow",
+                     "Action": "execute-api:Invoke",
+                     "Resource": {"Ref" : "ExecuteApiIAMPolicyResource"}
+                  } ]
+                }
+            } ]
+        }
+    }
+  }
+}
